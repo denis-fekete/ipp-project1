@@ -32,7 +32,7 @@ match keyword:
     case "WRITE": # symb
         dummy()
     # Working with strings
-    case "CONCAT" | "GETCHAR" | "SETCHAR" : # 3
+    case "CONCAT" | "GETCHAR" | "SETCHAR" : # var symb1 symb2
         dummy()
     case "STRLEN" : # var symb
         dummy()
