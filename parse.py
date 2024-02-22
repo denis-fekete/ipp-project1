@@ -10,13 +10,16 @@ varList = []
 
 stackCounter = 0
 
+enumerate 
 #----------------------------------------------------------
-
 def dummy():
     1 == 1
-
 #----------------------------------------------------------
-
+def ErrorHandling(code):
+    #TODO:print error message
+    print("Error:", code)
+    exit(code)
+#----------------------------------------------------------
 def writeInstruction(opcode):
     """ Starts instruction section in XML file"""
     global instOrder
@@ -24,9 +27,7 @@ def writeInstruction(opcode):
 
     string = "\t" + "<instruction order=\"" +  str(instOrder) + "\" opcode=\"" + opcode + "\">"
     file.append(string)
-
 #----------------------------------------------------------
-    
 def writeEndInstruction():
     """ Ends instruction section in XML file"""
     string = "\t" + "</instruction>"
@@ -34,19 +35,17 @@ def writeEndInstruction():
     
     global argNum
     argNum = 0
-
 #----------------------------------------------------------
-
 def writeArg(argType, text):
     """ Writes arguments to the the XML file"""
-
     global argNum
+
+    text = filterProblematicChars(text)
+    
     argNum += 1
     string = "\t\t" + "<arg" + str(argNum) + " type=\"" + argType + "\">" + text + "</arg" + str(argNum) + ">"
     file.append(string)
-
 #----------------------------------------------------------
-
 def checkArgsCount(expected, args, lineCount):
     """ Returns "False" or "0" if less than expected agruments are stored in "args".
         Returns "True" if expected amount was found. "-1" means more than enough were given
@@ -68,32 +67,24 @@ def checkArgsCount(expected, args, lineCount):
     # if more than expected other will probably be comments
     else:
         return -1
-
 #----------------------------------------------------------
-
 def checkForComments(args, idx):
     """ Check if arguments in "args" after index "idx" are comments 
     """
     return True
-
 #----------------------------------------------------------
-
 def stackReset():
     """ Resets "stackCounter"
     """
     global stackCounter
     stackCounter = 0
-
 #----------------------------------------------------------
-
 def stackAdd():
     """ Increases "stackCounter" by one
     """
     global stackCounter
     stackCounter += 1
-
 #----------------------------------------------------------
-    
 def stackPop():
     """ Returns True if popping from stack was valid
     """
@@ -106,18 +97,13 @@ def stackPop():
 
     # Return true if popping was valid and "stackCounter" didn't go to negative
     return True
-    
-
 #----------------------------------------------------------
-
 def isValidLabel(val):
     """ Check if value "val" is valid label"""
     if(val[0] > '0' and val[0] < '9'):
         return False
     return True
-
 #----------------------------------------------------------
-
 def labelAlreadyExists(val):
     """ Checks if label "val" already exists in "labelList"."""
 
@@ -131,22 +117,27 @@ def labelAlreadyExists(val):
         return True
         
     return False
-
 #----------------------------------------------------------
-
 def isValidVariable(val):
     """ Returns True if variable "val" is valid, False if variable is not valid."""
-    if(val[0] > '0' and val[0] < '9'):
+
+    identificator = val[0:3]
+    if not (identificator == "GF@" or identificator == "LF@" or identificator == "TF@"):
         return False
+
+    i = 4
+    while i < len(val):
+        if  not ((val[i] > '0' and val[i] < '9') or (val[i] > 'a' and val[i] < 'z') or (val[i] > 'A' and val[i] < 'Z')):
+            return False
+        if not (val[i] != '_' or val[i] != '$' or val[i] != '&' or val[i] != '%' or val[i] != '*' or val[i] != '!' or val[i] != '?' ):
+            return False
+        i += 1
+        
     return True
-    
-
 #----------------------------------------------------------
-
 def variableAlreadyExists(val):
-    """ Returns is variable "val" already exits in varList
-    """
-    if isValidVariable(val):
+    """ Returns is variable "val" already exits in varList"""
+    if not isValidVariable(val):
         # TODO: print error
         return False
 
@@ -156,17 +147,63 @@ def variableAlreadyExists(val):
         return True
     
     return False
-    
 #----------------------------------------------------------
+def isValidLiteral(val):
+    """Check is value "val" is valid literal"""
+    #TODO:
+    
+    idx = val.find("@")
+    identificator = val[0:idx+1]
+    value = val[idx+1:len(val)]
 
-def fsm(args, lineCount):
+    if identificator == "string@":
+        return "string"
+    elif identificator == "int@":
+        return "int" # TODO:
+    elif identificator == "bool@":
+        if value == "true" or value == "false":
+            return "bool"
+    elif identificator == "nil":
+        if value == "nil":
+            return "nil"
+    
+    return "invalid"
+#----------------------------------------------------------
+def isValidSymbol(val):
+    """Checks if value "val" is Literal or Variable"""
+    if variableAlreadyExists(val):
+        return "var"
+    else:
+        res = isValidLiteral(val)
+        if res != "invalid":
+            return res
+    return "invalid"
+#----------------------------------------------------------
+def isValidType(val):
+    """Checks if value "val" is valid type, return True if yes"""
+    match val:
+        case "int":
+            return True
+        case "string":
+            return True
+        case "bool":
+            return True
+        case "nil":
+            return True
+        case _:
+            return False
+#----------------------------------------------------------
+def filterProblematicChars(line):
+    # filter out characters
+    line = line.replace("&", "&amp")
+    line = line.replace("<", "&lt")
+    line = line.replace(">", "&gt")
+    return line
+def keywordProcessing(keyword, argType, args):
     global labelList
     global varList
 
-    keyword = str.upper(args[0])
-
     expectedArgs = 0
-    argType = []
 
     match keyword:
         # ---------- Memory and function calling, working with stack ----------
@@ -176,90 +213,170 @@ def fsm(args, lineCount):
                 varList.append(args[1])
                 argType.append("var")
             else:
-                dummy()
+                ErrorHandling(0) # TODO:
+        #---------------------------------------
         case "PUSHS" : # symb 
             expectedArgs = 1
             if variableAlreadyExists(args[1]):
                 argType.append("var")
             else:
-                # TODO: raise exception
-                dummy() 
+                ErrorHandling(0) # TODO:
+        #---------------------------------------
         case "POPS" : # var
             expectedArgs = 1
 
             if not stackPop():
                 # TODO: raise expection, stack underflow
-                dummy()
-
+                ErrorHandling(0) # TODO:
+        #---------------------------------------
         case "POPFRAME" | "PUSHFRAME" | "CREATEFRAME" | "RETURN" : # none
             expectedArgs = 0
+        #---------------------------------------
         case "CALL" : # label
             expectedArgs = 1
 
             if labelAlreadyExists(args[1]):
                 argType.append("label")
             else:
-                # TODO: error
-                dummy()
-
-        # ---------- Arithmetic operations ----------
+                ErrorHandling(0) # TODO:
+        #---------------------------------------
         case ("ADD" | "SUB" | "MUL" | "DIV" | "IDIV" | 
-              "LT" |"GT" | "EQ" | "AND" | "OR" | "NOT") : # var symb1 symb2
+              "LT" |"GT" | "EQ" | "AND" | "OR" | "NOT" |
+              "INT2CHAR" | "STRI2INT" |
+              "CONCAT" | "GETCHAR" | "SETCHAR") : # var symb1 symb2
             expectedArgs = 3
-            
+            if variableAlreadyExists(args[1]):
+                argType.append("var")
 
-        case "INT2CHAR" | "STRI2INT" : # var symb1 symb2
-            expectedArgs = 3
-        # ---------- Input / output operations ----------
+                res = isValidSymbol(args[2])
+                if res == "invalid":
+                    ErrorHandling(0) #TODO:
+                else:
+                    argType.append(res)
+
+                res = isValidSymbol(args[3])
+                if res == "invalid":
+                    ErrorHandling(0) #TODO:
+                else:
+                    argType.append(res)
+            else:
+                ErrorHandling(0) #TODO:
+
+        #---------------------------------------
         case "READ": # var type
             expectedArgs = 2
+            if variableAlreadyExists(args[1]):
+                if isValidType(args[2]):
+                    argType.append("var")
+                    argType.append("type")
+                else:
+                    ErrorHandling(0) # TODO:
+            else:
+                ErrorHandling(0) # TODO:
+        #---------------------------------------
         case "WRITE": # symb
             expectedArgs = 1
-        # ---------- Working with strings ----------
-        case "CONCAT" | "GETCHAR" | "SETCHAR" : # var symb1 symb2
-            expectedArgs = 3
-        case "STRLEN" : # var symb
+            res = isValidSymbol(args[1])
+            if res != "invalid":
+                argType.append(res)
+            else:
+                ErrorHandling(0) # TODO:
+        #---------------------------------------
+        case "STRLEN" | "TYPE" | "MOVE" : # var symb
             expectedArgs = 2
-        # ---------- Working with types ----------
-        case "TYPE": # var symb
-            expectedArgs = 2
-        # ---------- Program flow control ----------
-        case "LABEL" : # symb
+
+            if variableAlreadyExists(args[1]):
+                res = isValidSymbol(args[2])
+                if res != "invalid":
+                    argType.append("var")
+                    argType.append(res)
+                else:
+                    ErrorHandling(0) # TODO:
+            else:
+                ErrorHandling(0) # TODO:
+        #---------------------------------------
+        case "LABEL" : # label
             expectedArgs = 1
-            argType.append("label")
-            labelList.append(args[1]) # add label to label list
+            if isValidLabel(args[1]):
+                argType.append("label")
+                labelList.append(args[1]) # add label to label list
+            else:
+                ErrorHandling(0) # TODO:
+        #---------------------------------------
         case "JUMP" : # label
             expectedArgs = 1
-            numOfArgs = 1
-            argType.append("label")
+            if isValidLabel(args[1]):
+                argType.append("label")
+            else:
+                ErrorHandling(0) # TODO:
+        #---------------------------------------
         case "JUMPIFEQ" | "JUMPIFNEQ" : # label symb1 symb2
             expectedArgs = 3
-        case "EXIT" : # symb
+            if isValidLabel(args[1]):
+                argType.append("label")
+
+                res = isValidSymbol(args[2])
+                if res == "invalid":
+                    ErrorHandling(0) #TODO:
+                else:
+                    argType.append(res)
+
+                res = isValidSymbol(args[3])
+                if res == "invalid":
+                    ErrorHandling(0) #TODO:
+                else:
+                    argType.append(res)
+        #---------------------------------------
+        case ("EXIT" | "DPRINT") : # symb
             expectedArgs = 1
-        # ---------- Debugging instructions ----------
-        case "DPRINT" : # symb
-            expectedArgs = 1
+            res = isValidSymbol(args[1])
+            if res != "invalid":
+                argType.append(res)
+            else:
+                ErrorHandling(0) #TODO:
+        #---------------------------------------
         case "BREAK" : # none
             expectedArgs = 0
-        # ---------- Other ----------
+        #---------------------------------------
         case "#" : # none
             expectedArgs = -1
+        #---------------------------------------
         case _ :
             #TODO: error unknown symbol
+            print(args)
             print("Error, no matching keyword for:", args[0])
+            ErrorHandling(1) #TODO:
     # -------- END OF SWITCH --------
+    
+    return expectedArgs
+#----------------------------------------------------------
+def fsm(args, lineCount):
+    global labelList
+    global varList
+
+    keyword = str.upper(args[0])
+    argType = []
+
+    # processing based on keyword
+    expectedArgs = keywordProcessing(keyword, argType, args)
 
     # check if correct number of arguments were provided
     result = checkArgsCount(expectedArgs, args, lineCount)
     # write new instruction
     writeInstruction(keyword)
     # fill all arguments
+
+    # append empty dummy characters to argType
+    argType.append(" ")
+    argType.append(" ")
+    argType.append(" ")
+
     i = 0
     while i < expectedArgs:
         writeArg(argType[i], args[i+1])
         i += 1
     # check for comments
-    checkForComments(args)
+    checkForComments(args, expectedArgs)
     # write end of instruction
     writeEndInstruction()
 
@@ -268,11 +385,16 @@ def fsm(args, lineCount):
 def main():
     # test first line
     line = input()
+    
+    # find #comment if there is some
+    commentIdx = line.find("#")
+    codeVersion = line[0:commentIdx]
+    # delete tabulators '\t' and whitespaces ' '
+    codeVersion = codeVersion.replace("\t", "").replace(" ", "")
 
-    if line != ".ippCode24":
-        print("Invalid first line")
-        SystemExit(1)
-
+    if codeVersion.upper() != ".IPPCODE24":
+        
+        ErrorHandling(21)
     # write header to xml
     file.append("<? xml version=\"1.0\" encoding=\"UTF-8\"?>")
     file.append("<program language=\"IPPcode24\">")
@@ -288,12 +410,14 @@ def main():
             # replace all '\t' with ' ', also replace multiple whitespaces '    ' with just one ' '
             line = line.replace('\t', ' ')
             # add space after #
-            line = line.replace("#", "# ")
+            line = line.replace("#", " #")
             # split line into arguments
             args = line.split(" ")
             
-            fsm(args, lineCount)
-            lineCount += 1
+            emptyLineSkip = line.replace(" ", "").replace("\t", "")
+            if len(emptyLineSkip) != 0:
+                fsm(args, lineCount)
+                lineCount += 1
 
         # if eof exception is found break from loop
         except EOFError:
@@ -302,17 +426,8 @@ def main():
     #end header for xml
     file.append("</program>")
 
-    print("-----------------------------\nPriting XML representation\n-----------------------------")
     for line in file:
         print(line)
-
-    # filter out characters
-    i = 0
-    while i < len(file):
-        file[i] = file[i].replace("&", "&amp")
-        file[i] = file[i].replace("<", "&lt")
-        file[i] = file[i].replace(">", "&gt")
-        i += 1
 
 #----------------------------------------------------------
 
