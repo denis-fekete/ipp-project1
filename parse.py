@@ -421,7 +421,17 @@ def syntacticControl(args, lineCount):
 
     i = 0
     while i < len(argType):
-        writeArg(argType[i], args[i+1])
+        # if is valid type (literal) cut type and @ from it
+        # example: string@hello_world -> string@ hello_world
+        if isValidType(argType[i]):
+            value = args[i+1]
+            ampIdx = value.find("@")
+            value = value[ampIdx + 1:]
+
+            writeArg(argType[i], value)
+        else:
+            writeArg(argType[i], args[i+1])
+        
         i += 1
     # write end of instruction
     writeEndInstruction()
