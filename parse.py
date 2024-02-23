@@ -5,8 +5,8 @@ file = []
 instOrder = 0
 argNum = 0
 
-labelList = []
-varList = []
+# labelList = []
+# varList = []
 
 stackVariableCnt = 0
 stackFrameCnt = 0
@@ -71,9 +71,9 @@ def writeArg(argType, text):
     global argNum
 
     # replace problematic characters with XML macros/represenation
-    text = text.replace("&", "&amp")
-    text = text.replace("<", "&lt")
-    text = text.replace(">", "&gt")
+    text = text.replace("&", "&amp;")
+    text = text.replace("<", "&lt;")
+    text = text.replace(">", "&gt;")
     # increase global counter of arguments
     argNum += 1
 
@@ -128,35 +128,29 @@ def stackFramePop():
     # Return true if popping was valid and "stackFrameCnt" didn't go to negative
     return True
 #----------------------------------------------------------
-def isValidLabel(val):
+def isValidLabel(val, lineCount):
     """ Checks if value "val" is valid label"""
     # label names and variable names follow same rules for naming
     # adding "GF@" makes it valid variable and can be checked by
     # isValidVariable() function
-    return isValidVariable("GF@" + val)
-#----------------------------------------------------------
-def labelAlreadyExists(val, lineCount):
-    """ Checks if label "val" already exists in "labelList". 
-    Exits with Error code 23 if label name is not valid"""
-
-    if not isValidLabel(val):
+    res = isValidVariable("GF@" + val, lineCount, False)
+    if res == False:
         ErrorHandling(23, "Label name '" + val + "' is not allowed", lineCount)
-
-    global labelList
-
-    if val in labelList:
+    else:
         return True
-        
-    return False
 #----------------------------------------------------------
-def isValidVariable(val):
+def isValidVariable(val, lineCount, exitIfInvalid=True):
     """ Returns True if variable "val" is valid, False if variable is not valid."""
 
     identificator = val[0:3]
-    if not (identificator == "GF@" or identificator == "LF@" or identificator == "TF@"):
-        return False
 
-    i = 4
+    if not (identificator == "GF@" or identificator == "LF@" or identificator == "TF@"):
+        if exitIfInvalid:
+            ErrorHandling(23, val + ": Is not an valid name for variable.", lineCount)
+        else:
+            return False
+
+    i = 3
     while i < len(val):
         if  not (   (val[i] >= '0' and val[i] <= '9') or 
                     (val[i] >= 'a' and val[i] <= 'z') or 
@@ -166,31 +160,13 @@ def isValidVariable(val):
                     val[i] == '%' or val[i] == '*' or
                     val[i] == '!' or val[i] == '?'):
                 
-                return False
+                if exitIfInvalid:
+                    ErrorHandling(23, val + ": Is not an valid name for variable.", lineCount)
+                else:
+                    return False
         i += 1
         
     return True
-#----------------------------------------------------------
-def variableAlreadyExists(val, lineCount, exitIfInvalidName=True):
-    """ Returns is variable "val" already exits in varList.
-     If "exitIfInvalidName" parameter is False script will not exit with error code."""
-    # check if variable "val" has valid name
-    res = isValidVariable(val)
-
-    # if "val" is not valid name for a variable
-    if not res:
-        # if "exit if invalid name" is true, print error and exit
-        if exitIfInvalidName:
-            ErrorHandling(23, val + ": Is not an valid name for variable.", lineCount)
-        else: # return false
-            return False
-        
-    global varList
-    # check if val is in global variable list
-    if val in varList:
-        return True
-    
-    return False
 #----------------------------------------------------------
 def isValidLiteral(val, exitIfInvalid = 0):
     """Check if value "val" is valid literal, if second argmunet "exitIfInvalid"
@@ -203,9 +179,9 @@ def isValidLiteral(val, exitIfInvalid = 0):
 
     if identificator == "string@":
         return "string"
-    elif identificator == "int@":
+    elif identificator == "int@" and len(value) > 0:
         # check first character, if it is "-" change indexing
-        if value[0] == "-":
+        if value[0] == "-" or value[0] == "+":
             i = 1
         else:
             i = 0
@@ -220,10 +196,10 @@ def isValidLiteral(val, exitIfInvalid = 0):
             i +=1
             
         return "int"
-    elif identificator == "bool@":
+    elif identificator == "bool@" and len(value) > 0:
         if value == "true" or value == "false":
             return "bool"
-    elif identificator == "nil":
+    elif identificator == "nil@" and len(value) > 0:
         if value == "nil":
             return "nil"
     
@@ -238,7 +214,7 @@ def isValidSymb(val, lineCount):
     if res != "invalid":
         return res
     # check "val" is valid variable and it exists
-    elif variableAlreadyExists(val, lineCount, False):
+    elif isValidVariable(val, lineCount, False):
         return "var"
     else:
         ErrorHandling(23, "Argument '" + str(val) +"' is not a valid symbol (variable or literal)", lineCount)
@@ -270,11 +246,8 @@ def keywordProcessing(keyword, argType, args, lineCount):
         case "DEFVAR" : # symb
             checkArgsCount(1, args, lineCount)
             
-            if not variableAlreadyExists(args[1], lineCount):
-                varList.append(args[1])
+            if isValidVariable(args[1], lineCount):
                 argType.append("var")
-            else:
-                ErrorHandling(23, "Duplicate variable declaration.", lineCount)
         #---------------------------------------
         case "POPS" : # var
             checkArgsCount(1, args, lineCount)
@@ -283,11 +256,9 @@ def keywordProcessing(keyword, argType, args, lineCount):
             if not stackVarPop():
                 ErrorHandling(23, "Invalid popping from stack of variables, stack was empty.", lineCount)
             # check if provided argument is existing variable
-            if not variableAlreadyExists(args[1], lineCount):
-                ErrorHandling(23, "Provided variable is not declared", lineCount)
+            isValidVariable(args[1], lineCount)
         #---------------------------------------
         case "CREATEFRAME" | "RETURN" | "BREAK" | "PUSHFRAME" | "POPFRAME": # none
-            #TODO: check if cannot be joined with PUSHFRAME
             checkArgsCount(0, args, lineCount)
             if keyword == "PUSHFRAME":
                 stackFrameAdd()
@@ -297,22 +268,22 @@ def keywordProcessing(keyword, argType, args, lineCount):
                     ErrorHandling(23, "Invalid popping from stack of frames, stack was empty.", lineCount)
         #---------------------------------------
         case ("ADD" | "SUB" | "MUL" | "DIV" | "IDIV" | 
-              "LT" |"GT" | "EQ" | "AND" | "OR" | "NOT" |
-              "INT2CHAR" | "STRI2INT" |
+              "LT" |"GT" | "EQ" | "AND" | "OR" |
+                "STRI2INT" |
               "CONCAT" | "GETCHAR" | "SETCHAR" |
               "JUMPIFEQ" | "JUMPIFNEQ") : # var symb1 symb2
             checkArgsCount(3, args, lineCount)
 
             exists = False
             if keyword == "JUMPIFEQ" or keyword == "JUMPIFNEQ":
-                exists = labelAlreadyExists(args[1], lineCount)
+                exists = isValidLabel(args[1], lineCount)
+                argType.append("label")
             else:
-                exists = variableAlreadyExists(args[1], lineCount)
+                exists = isValidVariable(args[1], lineCount)
+                argType.append("var")
 
             # check if first argument is variable and exists
             if exists:
-                argType.append("var")
-                
                 #check if arg[2] is valid symbol
                 typeT = isValidSymb(args[2], lineCount)
                 argType.append(typeT)
@@ -328,30 +299,26 @@ def keywordProcessing(keyword, argType, args, lineCount):
         case "READ": # var type
             checkArgsCount(2, args, lineCount)
 
-            if variableAlreadyExists(args[1], lineCount):
+            if isValidVariable(args[1], lineCount):
                 if isValidType(args[2]):
                     argType.append("var")
                     argType.append("type")
                 else:
                     ErrorHandling(23, "Arguemnt: '" + args[2]  + 
                                   "' is not recognized as valid type", lineCount)
-            else:
-                ErrorHandling(23, "Variable '" + args[1] + "' wasn't declared", lineCount)
         #---------------------------------------
-        case "STRLEN" | "TYPE" | "MOVE" : # var symb
+        case "STRLEN" | "TYPE" | "MOVE" | "INT2CHAR" | "NOT" : # var symb
             checkArgsCount(2, args, lineCount)
 
-            if variableAlreadyExists(args[1], lineCount):
+            if isValidVariable(args[1], lineCount):
                 typeT = isValidSymb(args[2], lineCount)
                 argType.append("var")
                 argType.append(typeT)
-            else:
-                ErrorHandling(23, "Variable '" + args[1] + "' wasn't declared", lineCount)
         #---------------------------------------
         case "JUMP" | "CALL" | "LABEL" : # label
             checkArgsCount(1, args, lineCount)
 
-            if labelAlreadyExists(args[1], lineCount):
+            if isValidLabel(args[1], lineCount):
                 argType.append("label")
             else:
                 ErrorHandling(23, "Label doesn't exist", lineCount)
@@ -363,21 +330,8 @@ def keywordProcessing(keyword, argType, args, lineCount):
             argType.append(typeT)
         #---------------------------------------
         case _ :
-            ErrorHandling(22, "Unknown operation code / keyword. Keyword: \"" + str(keyword) + "\"")
+            ErrorHandling(22, "Unknown operation code / keyword. Keyword: \"" + str(keyword) + "\"", lineCount)
     # -------- END OF SWITCH --------
-#----------------------------------------------------------
-def fillLabels(args, lineCount):
-    global labelList
-
-    # check if argument is LABEL, if not skip
-    if args[0].upper() == "LABEL":
-        checkArgsCount(1, args, lineCount)            
-        
-        # check if label has valid name
-        if isValidLabel(args[1]):
-            labelList.append(args[1]) # add label to label list
-        else:
-            ErrorHandling(23, "Not a valid name for label", lineCount)
 #----------------------------------------------------------
 def filterRawLine(inputLine):
     """Separates line into operation code/keyword and arguments, 
@@ -456,7 +410,6 @@ def main():
     #--------------------------------------------------------------------------
 
     lineCount = 1 # line counting
-    lines = [] # list of arguments representing each line
 
     # filter out newlines and comments before header (.ippcode24)
     while 1:
@@ -486,6 +439,10 @@ def main():
     #   First pass, filling list of Labels
     #--------------------------------------------------------------------------
 
+    # write header to xml
+    file.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
+    file.append("<program language=\"IPPcode24\">")
+
     # first pass for filling labels into labelList, loop until EOF is found
     while 1:
         try:
@@ -493,34 +450,18 @@ def main():
             line = input()
             # filter argmuents and look for comments
             args = filterRawLine(line)
+            lineCount += 1
 
             # check if line is not empty
             if len(args) > 0 :
-                fillLabels(args, lineCount)
-                lineCount += 1
+                syntacticControl(args, lineCount)
             # store "args" into list of arguments for second pass
-            lines.append(args)
         
         # if eof exception is found break from loop
         except EOFError:
             break
 
-    #--------------------------------------------------------------------------
-    #   Second pass, creating code and checking syntax
-    #--------------------------------------------------------------------------
-        
-    # write header to xml
-    file.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
-    file.append("<program language=\"IPPcode24\">")
-
-    # reset line counter
-    lineCount = 1
-    # second pass
-    for line in lines:
-        lineCount += 1
-        if len(line) > 0:
-            syntacticControl(line, lineCount)
-        
+    # ----------------- END WHILE ---------------
     #end header for xml
     file.append("</program>")
 
@@ -531,6 +472,7 @@ def main():
     for line in file:
         print(line)
 
+    exit(0)
 #----------------------------------------------------------
 
 main()
