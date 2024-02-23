@@ -510,7 +510,7 @@ def main():
     #--------------------------------------------------------------------------
         
     # write header to xml
-    file.append("<? xml version=\"1.0\" encoding=\"UTF-8\"?>")
+    file.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
     file.append("<program language=\"IPPcode24\">")
 
     # reset line counter
