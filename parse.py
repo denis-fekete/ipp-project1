@@ -88,46 +88,6 @@ def checkArgsCount(expected, args, lineCount):
     if expected > len(args) - 1:
         ErrorHandling(23, "Not enough arguments given for operation code (or keyword): " + args[0], lineCount)
 #----------------------------------------------------------
-def stackReset():
-    """ Resets global "stackCounter" """
-    global stackVariableCnt
-    stackVariableCnt = 0
-#----------------------------------------------------------
-def stackVarAdd():
-    """ Increases global variable stack counter "stackVariableCnt" by one"""
-    global stackVariableCnt
-    stackVariableCnt += 1
-#----------------------------------------------------------
-def stackVarPop():
-    """ Returns True if popping from stack of variables was valid"""
-    
-    global stackVariableCnt
-    stackVariableCnt -= 1
-
-    # Check if stackCounter is negative number, if yes return false
-    if stackVariableCnt < 0:
-        return False
-
-    # Return true if popping was valid and "stackCounter" didn't go to negative
-    return True
-#----------------------------------------------------------
-def stackFrameAdd():
-    """ Increases frame stack counter "stackFrameCnt" by one"""
-    global stackFrameCnt
-    stackFrameCnt += 1
-#----------------------------------------------------------
-def stackFramePop():
-    """ Returns True if popping from stack of frames was valid"""
-    global stackFrameCnt
-    stackFrameCnt -= 1
-
-    # Check if stackFrameCnt is negative number, if yes return false
-    if stackFrameCnt < 0:
-        return False
-
-    # Return true if popping was valid and "stackFrameCnt" didn't go to negative
-    return True
-#----------------------------------------------------------
 def isValidLabel(val, lineCount):
     """ Checks if value "val" is valid label"""
     # label names and variable names follow same rules for naming
@@ -152,18 +112,17 @@ def isValidVariable(val, lineCount, exitIfInvalid=True):
 
     i = 3
     while i < len(val):
-        if  not (   (val[i] >= '0' and val[i] <= '9') or 
-                    (val[i] >= 'a' and val[i] <= 'z') or 
+        if  not (   (val[i] >= 'a' and val[i] <= 'z') or 
                     (val[i] >= 'A' and val[i] <= 'Z') or
                     val[i] == '_' or val[i] == '-' or 
                     val[i] == '$' or val[i] == '&' or 
                     val[i] == '%' or val[i] == '*' or
                     val[i] == '!' or val[i] == '?'):
-                
-                if exitIfInvalid:
-                    ErrorHandling(23, val + ": Is not an valid name for variable.", lineCount)
-                else:
-                    return False
+                if not (i > 3 and (val[i] >= '0' and val[i] <= '9')):
+                    if exitIfInvalid:
+                        ErrorHandling(23, val + ": Is not an valid name for variable.", lineCount)
+                    else:
+                        return False
         i += 1
         
     return True
@@ -251,21 +210,11 @@ def keywordProcessing(keyword, argType, args, lineCount):
         #---------------------------------------
         case "POPS" : # var
             checkArgsCount(1, args, lineCount)
-
-            # check if stack is not already empty
-            if not stackVarPop():
-                ErrorHandling(23, "Invalid popping from stack of variables, stack was empty.", lineCount)
-            # check if provided argument is existing variable
-            isValidVariable(args[1], lineCount)
+            if isValidVariable(args[1], lineCount):
+                argType.append("var")
         #---------------------------------------
         case "CREATEFRAME" | "RETURN" | "BREAK" | "PUSHFRAME" | "POPFRAME": # none
             checkArgsCount(0, args, lineCount)
-            if keyword == "PUSHFRAME":
-                stackFrameAdd()
-            if keyword == "POPFRAME":
-                # check if stack is not already empty
-                if not stackFramePop():
-                    ErrorHandling(23, "Invalid popping from stack of frames, stack was empty.", lineCount)
         #---------------------------------------
         case ("ADD" | "SUB" | "MUL" | "DIV" | "IDIV" | 
               "LT" |"GT" | "EQ" | "AND" | "OR" |
