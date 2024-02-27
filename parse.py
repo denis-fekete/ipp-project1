@@ -1,17 +1,18 @@
 import sys
 
-file = []
+ACCEPTED_UNICODE = ["000", "001", "002", "003", "004", "005", "006", "007",
+"008", "009", "010", "011", "012", "013", "014", "015", "016", "017", "018",
+"019", "020", "021", "022", "023", "024", "025", "026", "027", "028", "029", 
+"030", "031", "032", "035", "092"]
+def PrintUnknownMenu():
+    """Prints unknown command messange to the standard output"""
 
-instOrder = 0
-argNum = 0
-
-# labelList = []
-# varList = []
-
-stackVariableCnt = 0
-stackFrameCnt = 0
-
+    text = """\
+Unknown parameter, use --help or -h for help."""
+    print(text)
+#----------------------------------------------------------
 def PrintHelpMenu():
+    """Prints help menu to the standard output"""
     text = """\
 Usage: [PYTHON] parse.py [OPTIONS]
 
@@ -29,13 +30,8 @@ If your system's default python version is not 3.10 use "python3.10"
 Examples:
     python parse.py < path/file         XML representation of code from "file"
                                         will be printed into standard output
-"""
-
+    """
     print(text)
-
-#----------------------------------------------------------
-def dummy(): # DEBUG:
-    1 == 1
 #----------------------------------------------------------
 def ErrorHandling(code, msg, lineCount):
     """Exits script with Error code "code" and prints "msg" to stderr.
@@ -49,26 +45,23 @@ def ErrorHandling(code, msg, lineCount):
     sys.stderr.write(errorMsg)
     exit(code)
 #----------------------------------------------------------
-def writeInstruction(opcode):
+def writeInstruction(opcode, file, instOrder):
     """ Starts instruction section in XML file"""
-    global instOrder
     # increase global counter of instrctions 
     instOrder += 1
 
     string = "\t" + "<instruction order=\"" +  str(instOrder) + "\" opcode=\"" + opcode + "\">"
     file.append(string)
+
+    return instOrder
 #----------------------------------------------------------
-def writeEndInstruction():
+def writeEndInstruction(file):
     """ Ends instruction section in XML file"""
     string = "\t" + "</instruction>"
     file.append(string)
-    
-    global argNum
-    argNum = 0 # reset global arguments counter
 #----------------------------------------------------------
-def writeArg(argType, text):
+def writeArg(argType, text, file, argNum):
     """ Writes arguments to the the XML file"""
-    global argNum
 
     # replace problematic characters with XML macros/represenation
     text = text.replace("&", "&amp;")
@@ -79,6 +72,8 @@ def writeArg(argType, text):
 
     string = "\t\t" + "<arg" + str(argNum) + " type=\"" + argType + "\">" + text + "</arg" + str(argNum) + ">"
     file.append(string)
+
+    return argNum
 #----------------------------------------------------------
 def checkArgsCount(expected, args, lineCount):
     """ Check if "args" contains "expected" number of items, if not end program"""
@@ -137,6 +132,14 @@ def isValidLiteral(val, exitIfInvalid = 0):
     value = val[idx+1:len(val)]
 
     if identificator == "string@":
+        i = 0
+        while i < len(value):
+            # if found backslash(\), check if it is accepted in ACCEPTED_UNICODE
+            if value[i] == '\\' :
+                if not (value[i + 1 : i + 4] in ACCEPTED_UNICODE):
+                    return "invalid"    
+                i += 3
+            i += 1
         return "string"
     elif identificator == "int@" and len(value) > 0:
         # check first character, if it is "-" change indexing
@@ -310,9 +313,10 @@ def filterRawLine(inputLine):
 
     return args
 #----------------------------------------------------------
-def syntacticControl(args, lineCount):
+def syntacticControl(args, lineCount, instOrder, file):
     """ Performs syntactic control and fills "file" list"""
     # list for storing types of arguments that will be added in order
+    argNum = 0
     argType = []
     keyword = str.upper(args[0])
 
@@ -320,7 +324,7 @@ def syntacticControl(args, lineCount):
     keywordProcessing(keyword, argType, args, lineCount)
 
     # write new instruction
-    writeInstruction(keyword)
+    instOrder = writeInstruction(keyword, file, instOrder)
 
     i = 0
     while i < len(argType):
@@ -331,13 +335,15 @@ def syntacticControl(args, lineCount):
             ampIdx = value.find("@")
             value = value[ampIdx + 1:]
 
-            writeArg(argType[i], value)
+            argNum = writeArg(argType[i], value, file, argNum)
         else:
-            writeArg(argType[i], args[i+1])
+            argNum = writeArg(argType[i], args[i+1], file, argNum)
         
         i += 1
     # write end of instruction
-    writeEndInstruction()
+    writeEndInstruction(file)
+
+    return instOrder
 #----------------------------------------------------------
 def main():
     #--------------------------------------------------------------------------
@@ -349,9 +355,12 @@ def main():
 
     if len(argv) > 1:
         ErrorHandling(10, "Too many arguements, parse.py takes only one argument (--help or -h)", -1)
+    elif len(argv) == 1:
+        if ("--help" in argv) or ("-h" in argv):
+            PrintHelpMenu()
+        else:
+            PrintUnknownMenu()
 
-    if ("--help" in argv) or ("-h" in argv):
-        PrintHelpMenu()
         exit(0) # exit script without problems
 
     #--------------------------------------------------------------------------
@@ -385,8 +394,10 @@ def main():
                       " (case insensitive) and comment.", lineCount)
 
     #--------------------------------------------------------------------------
-    #   First pass, filling list of Labels
+    #   Processing input code and syntax control
     #--------------------------------------------------------------------------
+    file = [] # stores output string in XML format
+    instOrder = 0 # instruction order counter
 
     # write header to xml
     file.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
@@ -403,7 +414,7 @@ def main():
 
             # check if line is not empty
             if len(args) > 0 :
-                syntacticControl(args, lineCount)
+                instOrder = syntacticControl(args, lineCount, instOrder, file)
             # store "args" into list of arguments for second pass
         
         # if eof exception is found break from loop
