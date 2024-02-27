@@ -43,8 +43,6 @@ def keywordProcessing(keyword, argType, args, lineCount):
         errors.
         Returns expected number of arguments for detected keyword. 
     """
-    global labelList
-    global varList
 
     match keyword:
         # ---------- Memory and function calling, working with stack ----------
@@ -62,7 +60,7 @@ def keywordProcessing(keyword, argType, args, lineCount):
         case "CREATEFRAME" | "RETURN" | "BREAK" | "PUSHFRAME" | "POPFRAME": # none
             checkArgsCount(0, args, lineCount)
         #---------------------------------------
-        case ("ADD" | "SUB" | "MUL" | "DIV" | "IDIV" | 
+        case ("ADD" | "SUB" | "MUL" | "DIV" | "IDIV" |
               "LT" |"GT" | "EQ" | "AND" | "OR" |
                 "STRI2INT" |
               "CONCAT" | "GETCHAR" | "SETCHAR" |
