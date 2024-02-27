@@ -1,164 +1,109 @@
 from ipp24_module.arg_processing import *
 from ipp24_module.utilities import *
+from ipp24_module.instruction import *
+from ipp24_module.argument import * 
 
-
-def writeInstruction(opcode, file, instOrder):
-    """ Starts instruction section in XML file"""
-    # increase global counter of instrctions 
-    instOrder += 1
-
-    string = "\t" + "<instruction order=\"" +  str(instOrder) + "\" opcode=\"" + opcode + "\">"
-    file.append(string)
-
-    return instOrder
 
 #----------------------------------------------------------
 
-def writeEndInstruction(file):
-    """ Ends instruction section in XML file"""
-    string = "\t" + "</instruction>"
-    file.append(string)
-
-#----------------------------------------------------------
-    
-def writeArg(argType, text, file, argNum):
-    """ Writes arguments to the the XML file"""
-
-    # replace problematic characters with XML macros/represenation
-    text = text.replace("&", "&amp;")
-    text = text.replace("<", "&lt;")
-    text = text.replace(">", "&gt;")
-    # increase global counter of arguments
-    argNum += 1
-
-    string = "\t\t" + "<arg" + str(argNum) + " type=\"" + argType + "\">" + text + "</arg" + str(argNum) + ">"
-    file.append(string)
-
-    return argNum
-
-#----------------------------------------------------------
-
-def keywordProcessing(keyword, argType, args, lineCount):
+def keywordProcessing(keyword, args, lineCount):
     """ Processes keyword, sets correct values to "argType" and check syntatic
         errors.
         Returns expected number of arguments for detected keyword. 
     """
-
+    argList : Argument = []
     match keyword:
         # ---------- Memory and function calling, working with stack ----------
-        case "DEFVAR" : # symb
-            checkArgsCount(1, args, lineCount)
+        case "DEFVAR" | "POPS": # symb
+            checkArgsCount(1, args, lineCount, keyword)
             
-            if isValidVariable(args[1], lineCount):
-                argType.append("var")
-        #---------------------------------------
-        case "POPS" : # var
-            checkArgsCount(1, args, lineCount)
-            if isValidVariable(args[1], lineCount):
-                argType.append("var")
+            argList.append(Argument())
+        
+            if argList[0].CheckIfNotValid(args[0], "var") :
+                ErrorHandling(23, args[1] + " is not a valid variable name", lineCount)
         #---------------------------------------
         case "CREATEFRAME" | "RETURN" | "BREAK" | "PUSHFRAME" | "POPFRAME": # none
-            checkArgsCount(0, args, lineCount)
+            checkArgsCount(0, args, lineCount, keyword)
         #---------------------------------------
         case ("ADD" | "SUB" | "MUL" | "DIV" | "IDIV" |
               "LT" |"GT" | "EQ" | "AND" | "OR" |
                 "STRI2INT" |
               "CONCAT" | "GETCHAR" | "SETCHAR" |
               "JUMPIFEQ" | "JUMPIFNEQ") : # var symb1 symb2
-            checkArgsCount(3, args, lineCount)
+            checkArgsCount(3, args, lineCount, keyword)
 
-            exists = False
+            # based on keyword check first argument to be label or variable
             if keyword == "JUMPIFEQ" or keyword == "JUMPIFNEQ":
-                exists = isValidLabel(args[1], lineCount)
-                argType.append("label")
-            else:
-                exists = isValidVariable(args[1], lineCount)
-                argType.append("var")
+                argList.append(Argument())
 
-            # check if first argument is variable and exists
-            if exists:
-                #check if arg[2] is valid symbol
-                typeT = isValidSymb(args[2], lineCount)
-                argType.append(typeT)
-
-                typeT = isValidSymb(args[3], lineCount)
-                argType.append(typeT)
+                if argList[0].CheckIfNotValid(args[0], "label") :
+                    ErrorHandling(23, args[1] + " is not a valid label name", lineCount)
             else:
-                if keyword == "JUMPIFEQ" or keyword == "JUMPIFNEQ":
-                    ErrorHandling(23, "Label '" + args[1] + "'wasn't declared", lineCount)
-                else:
-                    ErrorHandling(23, "Variable '" + args[1] + "' wasn't declared", lineCount)
+                argList.append(Argument())
+
+                if argList[0].CheckIfNotValid(args[0], "var") :
+                    ErrorHandling(23, args[1] + " is not a valid variable name", lineCount)
+
+            # check second parameter to be symbol
+            argList.append(Argument())
+
+            if argList[1].CheckIfNotValid(args[1], "symbol") :
+                ErrorHandling(23, args[1] + " is not a valid symbol", lineCount)
+            
+            # check third parameter to be symbol
+            argList.append(Argument())
+
+            if argList[2].CheckIfNotValid(args[2], "symbol") :
+                ErrorHandling(23, args[1] + " is not a valid symbol", lineCount)
         #---------------------------------------
         case "READ": # var type
-            checkArgsCount(2, args, lineCount)
+            checkArgsCount(2, args, lineCount, keyword)
 
-            if isValidVariable(args[1], lineCount):
-                if isValidType(args[2]):
-                    argType.append("var")
-                    argType.append("type")
-                else:
-                    ErrorHandling(23, "Arguemnt: '" + args[2]  + 
-                                  "' is not recognized as valid type", lineCount)
+            argList.append(Argument())
+
+            if argList[0].CheckIfNotValid(args[0], "var") :
+                ErrorHandling(23, args[0] + " is not a valid variable name", lineCount)
+
+            if isValidType(args[1]):
+                argList.append(Argument())
+                argList[1].SetType("type")
+                argList[1].SetText(args[1])
+            else:
+                ErrorHandling(23, "Argument: '" + args[1]  + "' is not recognized as valid type", lineCount)
         #---------------------------------------
         case "STRLEN" | "TYPE" | "MOVE" | "INT2CHAR" | "NOT" : # var symb
-            checkArgsCount(2, args, lineCount)
+            checkArgsCount(2, args, lineCount, keyword)
 
-            if isValidVariable(args[1], lineCount):
-                typeT = isValidSymb(args[2], lineCount)
-                argType.append("var")
-                argType.append(typeT)
+            argList.append(Argument())
+
+            if argList[0].CheckIfNotValid(args[0], "var") :
+                ErrorHandling(23, args[0] + " is not a valid variable name", lineCount)
+            argList.append(Argument())
+
+            if argList[1].CheckIfNotValid(args[1], "symbol") :
+                ErrorHandling(23, args[1] + " is not a valid symbol", lineCount)
         #---------------------------------------
         case "JUMP" | "CALL" | "LABEL" : # label
-            checkArgsCount(1, args, lineCount)
+            checkArgsCount(1, args, lineCount, keyword)
 
-            if isValidLabel(args[1], lineCount):
-                argType.append("label")
-            else:
-                ErrorHandling(23, "Label doesn't exist", lineCount)
+            argList.append(Argument())
+
+            if argList[0].CheckIfNotValid(args[0], "label") :
+                ErrorHandling(23, args[0] + " is not a valid label name", lineCount)
         #---------------------------------------
         case ("EXIT" | "DPRINT" | "WRITE" | "PUSHS") : # symb
-            checkArgsCount(1, args, lineCount)
+            checkArgsCount(1, args, lineCount, keyword)
 
-            typeT = isValidSymb(args[1], lineCount)
-            argType.append(typeT)
+            argList.append(Argument())
+
+            if argList[0].CheckIfNotValid(args[0], "symbol") :
+                ErrorHandling(23, args[0] + " is not a valid symbol", lineCount)
         #---------------------------------------
         case _ :
             ErrorHandling(22, "Unknown operation code / keyword. Keyword: \"" + str(keyword) + "\"", lineCount)
     # -------- END OF SWITCH --------
             
-#----------------------------------------------------------
-            
-def syntacticControl(args, lineCount, instOrder, file):
-    """ Performs syntactic control and fills "file" list"""
-    # list for storing types of arguments that will be added in order
-    argNum = 0
-    argType = []
-    keyword = str.upper(args[0])
-
-    # processing based on keyword
-    keywordProcessing(keyword, argType, args, lineCount)
-
-    # write new instruction
-    instOrder = writeInstruction(keyword, file, instOrder)
-
-    i = 0
-    while i < len(argType):
-        # if is valid type (literal) cut type and @ from it
-        # example: string@hello_world -> string@ hello_world
-        if isValidType(argType[i]):
-            value = args[i+1]
-            ampIdx = value.find("@")
-            value = value[ampIdx + 1:]
-
-            argNum = writeArg(argType[i], value, file, argNum)
-        else:
-            argNum = writeArg(argType[i], args[i+1], file, argNum)
-        
-        i += 1
-    # write end of instruction
-    writeEndInstruction(file)
-
-    return instOrder
+    return argList
 
 #----------------------------------------------------------
 
@@ -168,7 +113,7 @@ def main():
     #--------------------------------------------------------------------------
 
     # 0th argument is name of script, cut it out
-    ParameterHandling(sys.argv)
+    parameterHandling(sys.argv)
 
     #--------------------------------------------------------------------------
     #   Checking head of file
@@ -204,11 +149,9 @@ def main():
     #   Processing input code and syntax control
     #--------------------------------------------------------------------------
     file = [] # stores output string in XML format
-    instOrder = 0 # instruction order counter
+    instOrder = 1 # instruction order counter
 
-    # write header to xml
-    file.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
-    file.append("<program language=\"IPPcode24\">")
+    program : Instruction = []
 
     # first pass for filling labels into labelList, loop until EOF is found
     while 1:
@@ -221,7 +164,16 @@ def main():
 
             # check if line is not empty
             if len(args) > 0 :
-                instOrder = syntacticControl(args, lineCount, instOrder, file)
+                # turn first argument on line into uppercase
+                keyword = str.upper(args[0])
+                # processing based on keyword
+                argList = keywordProcessing(keyword, args[1:], lineCount)
+                # create instruction with arguemnts
+                inst = Instruction(instOrder, keyword, argList)
+                # append instruction into program
+                program.append(inst)
+
+                instOrder += 1
             # store "args" into list of arguments for second pass
         
         # if eof exception is found break from loop
@@ -229,15 +181,20 @@ def main():
             break
 
     # ----------------- END WHILE ---------------
-    #end header for xml
-    file.append("</program>")
 
     #--------------------------------------------------------------------------
     #   Writing generated code interpretation into output file
     #--------------------------------------------------------------------------
+        
+    # write header to xml
+    sys.stdout.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"+"\n")
+    sys.stdout.write("<program language=\"IPPcode24\">"+"\n")
 
-    for line in file:
-        print(line)
+    for instruction in program:
+        instruction.PrintMe("\t", "\t\t", True)
+
+    #end header for xml
+    sys.stdout.write("</program>"+"\n")
 
     exit(0)
 #----------------------------------------------------------
