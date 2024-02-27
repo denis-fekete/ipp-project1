@@ -1,50 +1,7 @@
-import sys
+from ipp24_module.arg_processing import *
+from ipp24_module.utilities import *
 
-ACCEPTED_UNICODE = ["000", "001", "002", "003", "004", "005", "006", "007",
-"008", "009", "010", "011", "012", "013", "014", "015", "016", "017", "018",
-"019", "020", "021", "022", "023", "024", "025", "026", "027", "028", "029", 
-"030", "031", "032", "035", "092"]
-def PrintUnknownMenu():
-    """Prints unknown command messange to the standard output"""
 
-    text = """\
-Unknown parameter, use --help or -h for help."""
-    print(text)
-#----------------------------------------------------------
-def PrintHelpMenu():
-    """Prints help menu to the standard output"""
-    text = """\
-Usage: [PYTHON] parse.py [OPTIONS]
-
-Without OPTIONS parse.py takes text from standard input in 
-IPPCode24 language and converts it into an XML file on standard
-output.
-
-OPTIONS:
-    -h, --help                          Prints (this) help message
-
-PYTHON:
-If your system's default python version is not 3.10 use "python3.10"
-(when using don't write quotation marks around python command).
-
-Examples:
-    python parse.py < path/file         XML representation of code from "file"
-                                        will be printed into standard output
-    """
-    print(text)
-#----------------------------------------------------------
-def ErrorHandling(code, msg, lineCount):
-    """Exits script with Error code "code" and prints "msg" to stderr.
-    If "lineCount" is negative number don't on which line error occured
-    """
-    if lineCount >= 0:
-        errorMsg = "Error: " + msg + " (On line: " + str(lineCount) + ")\n"
-    else:
-        errorMsg = "Error: " + msg + "\n"
-
-    sys.stderr.write(errorMsg)
-    exit(code)
-#----------------------------------------------------------
 def writeInstruction(opcode, file, instOrder):
     """ Starts instruction section in XML file"""
     # increase global counter of instrctions 
@@ -54,12 +11,16 @@ def writeInstruction(opcode, file, instOrder):
     file.append(string)
 
     return instOrder
+
 #----------------------------------------------------------
+
 def writeEndInstruction(file):
     """ Ends instruction section in XML file"""
     string = "\t" + "</instruction>"
     file.append(string)
+
 #----------------------------------------------------------
+    
 def writeArg(argType, text, file, argNum):
     """ Writes arguments to the the XML file"""
 
@@ -74,127 +35,9 @@ def writeArg(argType, text, file, argNum):
     file.append(string)
 
     return argNum
-#----------------------------------------------------------
-def checkArgsCount(expected, args, lineCount):
-    """ Check if "args" contains "expected" number of items, if not end program"""
-    # -1 is for KEYWORD that is in args: KEYWORD ARG1 ARG2 etc...
-    if expected < len(args) - 1:
-        ErrorHandling(23, "Too many arguments given for operation code (or keyword): " + args[0], lineCount)
-    if expected > len(args) - 1:
-        ErrorHandling(23, "Not enough arguments given for operation code (or keyword): " + args[0], lineCount)
-#----------------------------------------------------------
-def isValidLabel(val, lineCount):
-    """ Checks if value "val" is valid label"""
-    # label names and variable names follow same rules for naming
-    # adding "GF@" makes it valid variable and can be checked by
-    # isValidVariable() function
-    res = isValidVariable("GF@" + val, lineCount, False)
-    if res == False:
-        ErrorHandling(23, "Label name '" + val + "' is not allowed", lineCount)
-    else:
-        return True
-#----------------------------------------------------------
-def isValidVariable(val, lineCount, exitIfInvalid=True):
-    """ Returns True if variable "val" is valid, False if variable is not valid."""
 
-    identificator = val[0:3]
+#----------------------------------------------------------
 
-    if not (identificator == "GF@" or identificator == "LF@" or identificator == "TF@"):
-        if exitIfInvalid:
-            ErrorHandling(23, val + ": Is not an valid name for variable.", lineCount)
-        else:
-            return False
-
-    i = 3
-    while i < len(val):
-        if  not (   (val[i] >= 'a' and val[i] <= 'z') or 
-                    (val[i] >= 'A' and val[i] <= 'Z') or
-                    val[i] == '_' or val[i] == '-' or 
-                    val[i] == '$' or val[i] == '&' or 
-                    val[i] == '%' or val[i] == '*' or
-                    val[i] == '!' or val[i] == '?'):
-                if not (i > 3 and (val[i] >= '0' and val[i] <= '9')):
-                    if exitIfInvalid:
-                        ErrorHandling(23, val + ": Is not an valid name for variable.", lineCount)
-                    else:
-                        return False
-        i += 1
-        
-    return True
-#----------------------------------------------------------
-def isValidLiteral(val, exitIfInvalid = 0):
-    """Check if value "val" is valid literal, if second argmunet "exitIfInvalid"
-      is provided and is not "0" or "False" script will end with Error code 23."""
-    # find index of "@"
-    idx = val.find("@")
-    # separate "val" into literal identificator and literal value
-    identificator = val[0:idx+1]
-    value = val[idx+1:len(val)]
-
-    if identificator == "string@":
-        i = 0
-        while i < len(value):
-            # if found backslash(\), check if it is accepted in ACCEPTED_UNICODE
-            if value[i] == '\\' :
-                if not (value[i + 1 : i + 4] in ACCEPTED_UNICODE):
-                    return "invalid"    
-                i += 3
-            i += 1
-        return "string"
-    elif identificator == "int@" and len(value) > 0:
-        # check first character, if it is "-" change indexing
-        if value[0] == "-" or value[0] == "+":
-            i = 1
-        else:
-            i = 0
-        
-        # check all characters in "value" to be 0-9
-        while i < len(value):
-            if not (value[i] >= "0" and value[i] <= "9"):
-                if exitIfInvalid:
-                    ErrorHandling(23, str(val) + " is not an valid literal", exitIfInvalid)
-                else:
-                    return "invalid"
-            i +=1
-            
-        return "int"
-    elif identificator == "bool@" and len(value) > 0:
-        if value == "true" or value == "false":
-            return "bool"
-    elif identificator == "nil@" and len(value) > 0:
-        if value == "nil":
-            return "nil"
-    
-    return "invalid"
-#----------------------------------------------------------
-def isValidSymb(val, lineCount):
-    """Checks if value "val" is literal or variable, if neither ends script with code 23.
-      If "val" is variable returns "var" (also checks if it was declared), if it is literal returns its type.
-    """
-    # check if symbol "val" is valid literal
-    res = isValidLiteral(val, lineCount)
-    if res != "invalid":
-        return res
-    # check "val" is valid variable and it exists
-    elif isValidVariable(val, lineCount, False):
-        return "var"
-    else:
-        ErrorHandling(23, "Argument '" + str(val) +"' is not a valid symbol (variable or literal)", lineCount)
-#----------------------------------------------------------
-def isValidType(val):
-    """Checks if value "val" is valid type, return True if yes"""
-    match val:
-        case "int":
-            return True
-        case "string":
-            return True
-        case "bool":
-            return True
-        case "nil":
-            return True
-        case _:
-            return False
-#----------------------------------------------------------
 def keywordProcessing(keyword, argType, args, lineCount):
     """ Processes keyword, sets correct values to "argType" and check syntatic
         errors.
@@ -284,35 +127,9 @@ def keywordProcessing(keyword, argType, args, lineCount):
         case _ :
             ErrorHandling(22, "Unknown operation code / keyword. Keyword: \"" + str(keyword) + "\"", lineCount)
     # -------- END OF SWITCH --------
+            
 #----------------------------------------------------------
-def filterRawLine(inputLine):
-    """Separates line into operation code/keyword and arguments, 
-        removes unnecesary whitespaces and comments if found.
-        Returns list of separated arguments.
-    """
-    # find first "#" in the line
-    commentIdx = inputLine.find("#")
-    # if "#" was found, separate "line" and "comment" into separate variables
-    if commentIdx != -1:
-        line = inputLine[0:commentIdx]
-    else:
-        line = inputLine
-
-    # replace all '\t' with ' ', also replace multiple whitespaces '    ' with just one ' '
-    line = line.replace('\t', ' ')
-    # split line into arguments
-    args = line.split(" ")
-    
-    # clear '' values from args list
-    i = 0
-    while i < len(args):
-        if len(args[i]) <= 0:
-            del args[i]
-        else: # if not found, increment
-            i += 1
-
-    return args
-#----------------------------------------------------------
+            
 def syntacticControl(args, lineCount, instOrder, file):
     """ Performs syntactic control and fills "file" list"""
     # list for storing types of arguments that will be added in order
@@ -344,24 +161,16 @@ def syntacticControl(args, lineCount, instOrder, file):
     writeEndInstruction(file)
 
     return instOrder
+
 #----------------------------------------------------------
+
 def main():
     #--------------------------------------------------------------------------
     #   Handling of arguments given to parser
     #--------------------------------------------------------------------------
 
     # 0th argument is name of script, cut it out
-    argv = sys.argv[1:] 
-
-    if len(argv) > 1:
-        ErrorHandling(10, "Too many arguements, parse.py takes only one argument (--help or -h)", -1)
-    elif len(argv) == 1:
-        if ("--help" in argv) or ("-h" in argv):
-            PrintHelpMenu()
-        else:
-            PrintUnknownMenu()
-
-        exit(0) # exit script without problems
+    ParameterHandling(sys.argv)
 
     #--------------------------------------------------------------------------
     #   Checking head of file
