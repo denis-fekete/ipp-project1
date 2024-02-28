@@ -13,4 +13,4 @@ A new argument object is then checked for its type by the function *CheckIfValid
 
 After the argument object/s are checked to be valid they are put in the list. Operation code (alias keyword) and list of arguments are then passed as parameters to the Instruction object, which is returned by the function *keywordProcessing()*. Instruction objects are then put into a list.
 ### 4. Outputing generated XML representation
-After all lines have been processed a variable *program* (list of instructions) is printed to the *stdout* by Program method *PrintMe()*.
+After all lines have been processed a variable *program* (list of instructions) is printed to the *stdout* by Program method *PrintMe()*.`
