@@ -20,7 +20,7 @@ def keywordProcessing(keyword, args, lineCount):
             argList.append(Argument())
         
             if argList[0].CheckIfNotValid(args[0], "var") :
-                ErrorHandling(23, args[1] + " is not a valid variable name", lineCount)
+                ErrorHandling(23, args[0] + " is not a valid variable name", lineCount)
         #---------------------------------------
         case "CREATEFRAME" | "RETURN" | "BREAK" | "PUSHFRAME" | "POPFRAME": # none
             checkArgsCount(0, args, lineCount, keyword)
@@ -37,12 +37,12 @@ def keywordProcessing(keyword, args, lineCount):
                 argList.append(Argument())
 
                 if argList[0].CheckIfNotValid(args[0], "label") :
-                    ErrorHandling(23, args[1] + " is not a valid label name", lineCount)
+                    ErrorHandling(23, args[0] + " is not a valid label name", lineCount)
             else:
                 argList.append(Argument())
 
                 if argList[0].CheckIfNotValid(args[0], "var") :
-                    ErrorHandling(23, args[1] + " is not a valid variable name", lineCount)
+                    ErrorHandling(23, args[0] + " is not a valid variable name", lineCount)
 
             # check second parameter to be symbol
             argList.append(Argument())
@@ -54,7 +54,7 @@ def keywordProcessing(keyword, args, lineCount):
             argList.append(Argument())
 
             if argList[2].CheckIfNotValid(args[2], "symbol") :
-                ErrorHandling(23, args[1] + " is not a valid symbol", lineCount)
+                ErrorHandling(23, args[2] + " is not a valid symbol", lineCount)
         #---------------------------------------
         case "READ": # var type
             checkArgsCount(2, args, lineCount, keyword)
@@ -112,7 +112,6 @@ def main():
     #   Handling of arguments given to parser
     #--------------------------------------------------------------------------
 
-    # 0th argument is name of script, cut it out
     parameterHandling(sys.argv)
 
     #--------------------------------------------------------------------------
@@ -135,6 +134,7 @@ def main():
         if len(codeVersion) > 0:
             break
 
+        # count lines that were skipped as well for more accurate error codes
         lineCount += 1
     # ----------------- END OF WHILE -----------------
     
@@ -148,7 +148,6 @@ def main():
     #--------------------------------------------------------------------------
     #   Processing input code and syntax control
     #--------------------------------------------------------------------------
-    file = [] # stores output string in XML format
     instOrder = 1 # instruction order counter
 
     program : Instruction = []
@@ -158,28 +157,26 @@ def main():
         try:
             # store whole line from input file into "line" variable  
             line = input()
-            # filter argmuents and look for comments
-            args = filterRawLine(line)
-            lineCount += 1
-
-            # check if line is not empty
-            if len(args) > 0 :
-                # turn first argument on line into uppercase
-                keyword = str.upper(args[0])
-                # processing based on keyword
-                argList = keywordProcessing(keyword, args[1:], lineCount)
-                # create instruction with arguemnts
-                inst = Instruction(instOrder, keyword, argList)
-                # append instruction into program
-                program.append(inst)
-
-                instOrder += 1
-            # store "args" into list of arguments for second pass
-        
-        # if eof exception is found break from loop
+        # if end of file is found break from loop
         except EOFError:
             break
 
+        # filter argmuents and look for comments
+        args = filterRawLine(line)
+        lineCount += 1
+
+        # check if line is not empty
+        if len(args) > 0 :
+            # turn first argument on line into uppercase
+            keyword = str.upper(args[0])
+            # processing based on keyword
+            argList = keywordProcessing(keyword, args[1:], lineCount)
+            # create instruction with arguemnts
+            inst = Instruction(instOrder, keyword, argList)
+            # append instruction into program
+            program.append(inst)
+
+            instOrder += 1
     # ----------------- END WHILE ---------------
 
     #--------------------------------------------------------------------------

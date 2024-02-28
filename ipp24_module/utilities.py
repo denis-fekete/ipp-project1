@@ -22,7 +22,7 @@ def PrintUnknownMenu():
     """Prints unknown command messange to the standard output"""
 
     text = """\
-Unknown parameter, use --help or -h for help."""
+Unknown parameter/'s combination, use --help or -h for help."""
     print(text)
 
 #------------------------------------------------------------------------------
@@ -52,14 +52,48 @@ Examples:
 #------------------------------------------------------------------------------
 
 def parameterHandling(input_argv : list):
+    # 0th argument is name of script, cut it out
     argv = input_argv[1:] 
 
     if len(argv) > 1:
-        ErrorHandling(10, "Too many arguements, parse.py takes only one argument (--help or -h)", -1)
+            PrintUnknownMenu()
+            exit(10)
     elif len(argv) == 1:
         if ("--help" in argv) or ("-h" in argv):
             PrintHelpMenu()
         else:
             PrintUnknownMenu()
+            exit(10)
 
         exit(0) # exit script without problems
+
+#------------------------------------------------------------------------------
+
+def filterRawLine(inputLine):
+    """Separates line into operation code/keyword and arguments, 
+        removes unnecesary whitespaces and comments if found.
+        Returns list of separated arguments.
+    """
+    # find first "#" in the line
+    commentIdx = inputLine.find("#")
+    # if "#" was found, separate "line" and "comment" into separate variables
+    if commentIdx != -1:
+        line = inputLine[0:commentIdx]
+    else:
+        line = inputLine
+
+    # replace all '\t' with ' ', also replace multiple whitespaces '    ' with just one ' '
+    line = line.replace('\t', ' ')
+    # split line into arguments
+    args = line.split(" ")
+
+
+    # clear '' values from args list
+    i = 0
+    while i < len(args):
+        if len(args[i]) <= 0:
+            del args[i]
+        else: # if not found, increment
+            i += 1
+
+    return args

@@ -1,3 +1,9 @@
 *.txt
 *.zip
 *.ipp24
+jexam
+TESTS
+tmp
+command
+*.html
+*.php

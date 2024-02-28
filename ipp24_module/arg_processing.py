@@ -51,40 +51,10 @@ def isValidType(val):
         
 #------------------------------------------------------------------------------
 
-def filterDangerousChars(inputString : str):
+def filterBlockedChars(inputString : str):
     """Filters out dangerous (not allowed) characters and returns corrected string"""
     string = inputString.replace("&", "&amp;")
     string = string.replace("<", "&lt;")
     string = string.replace(">", "&gt;")
 
     return string
-
-#------------------------------------------------------------------------------
-            
-def filterRawLine(inputLine):
-    """Separates line into operation code/keyword and arguments, 
-        removes unnecesary whitespaces and comments if found.
-        Returns list of separated arguments.
-    """
-    # find first "#" in the line
-    commentIdx = inputLine.find("#")
-    # if "#" was found, separate "line" and "comment" into separate variables
-    if commentIdx != -1:
-        line = inputLine[0:commentIdx]
-    else:
-        line = inputLine
-
-    # replace all '\t' with ' ', also replace multiple whitespaces '    ' with just one ' '
-    line = line.replace('\t', ' ')
-    # split line into arguments
-    args = line.split(" ")
-    
-    # clear '' values from args list
-    i = 0
-    while i < len(args):
-        if len(args[i]) <= 0:
-            del args[i]
-        else: # if not found, increment
-            i += 1
-
-    return args

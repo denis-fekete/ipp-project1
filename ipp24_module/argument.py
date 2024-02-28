@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import sys
-from ipp24_module.arg_processing import validSymbolsForName,  isValidType, filterDangerousChars
+from ipp24_module.arg_processing import validSymbolsForName,  isValidType, filterBlockedChars
 from ipp24_module.utilities import ACCEPTED_UNICODE
 
 @dataclass
@@ -18,9 +18,10 @@ class Argument:
 #------------------------------------------------------------------------------
 
     def CheckIfNotValid(self, arg : str, expected : str):
-        """Returns False (0) if argument is valid and if it has expected value"""
+        """Returns False (0) if argument is valid and if it has expected value\
+        Accepted values for exprected are: "symbol", "var", "label" and "literal"\
+        where symbols means either var of literal"""
         # decide type based on "arg" parameter and return True if error occured
-
 
         if (self.__decideType__(arg) ):
             if (expected == self.ttype):
@@ -65,19 +66,19 @@ class Argument:
         # check if is valid to be variable name
         if self.__isVariable__(arg):
             self.ttype = "var"
-            self.text = arg
+            self.text = filterBlockedChars(arg)
             return True
         # if not variable, check if label
         elif self.__isLabel__(arg):
             self.ttype = "label"
-            self.text = filterDangerousChars(arg)
+            self.text = filterBlockedChars(arg)
             return True
         
         # if neither, check if is literal
         literalType, value =  self.__isLiteral__(arg)
         if(literalType != "invalid"):
             self.ttype = literalType
-            self.text = filterDangerousChars(value)
+            self.text = filterBlockedChars(value)
             return True
 
         return False
@@ -89,7 +90,7 @@ class Argument:
         if name[0].isnumeric():
             return False
         # check rest of the name for literal
-        return validSymbolsForName(name[1:])
+        return validSymbolsForName(name)
 
 #------------------------------------------------------------------------------
 
@@ -121,24 +122,22 @@ class Argument:
                 # if found backslash(\), check if it is accepted in ACCEPTED_UNICODE
                 if value[i] == '\\' :
                     if not (value[i + 1 : i + 4] in ACCEPTED_UNICODE):
-                        return "invalid"    
+                        return "invalid", value  
                     i += 3
                 i += 1
 
             return "string", value
         # ---------------------------------------------------------------------
         elif identificator == "int@" and len(value) > 0:
+            i = 0
             # check first character, if it is "-" change indexing
             if value[0] == "-" or value[0] == "+":
-                i = 1
-            else:
-                i = 0
+                i += 1
             
             # check all characters in "value" to be 0-9
-            i = 0
             while i < len(value):
                 if not (value[i] >= "0" and value[i] <= "9"):
-                    return "invalid"
+                    return "invalid", value
                 
                 i += 1
 
