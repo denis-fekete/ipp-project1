@@ -7,3 +7,4 @@ tmp
 command
 *.html
 *.php
+.vscode
