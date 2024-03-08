@@ -99,6 +99,9 @@ def keywordProcessing(keyword, args, lineCount):
             if argList[0].CheckIfNotValid(args[0], "symbol") :
                 ErrorHandling(23, args[0] + " is not a valid symbol", lineCount)
         #---------------------------------------
+        case ".IPPCODE24":
+            ErrorHandling(23, "Repetitive header found", lineCount);
+        #---------------------------------------
         case _ :
             ErrorHandling(22, "Unknown operation code / keyword. Keyword: \"" + str(keyword) + "\"", lineCount)
     # -------- END OF SWITCH --------

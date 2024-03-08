@@ -16,7 +16,7 @@ def ErrorHandling(code, msg, lineCount):
         errorMsg = "Error: " + msg + "\n"
 
     sys.stderr.write(errorMsg)
-    exit(code)
+    sys.exit(code)
 
 def PrintUnknownMenu():
     """Prints unknown command messange to the standard output"""
@@ -57,15 +57,15 @@ def parameterHandling(input_argv : list):
 
     if len(argv) > 1:
             PrintUnknownMenu()
-            exit(10)
+            sys.exit(10)
     elif len(argv) == 1:
         if ("--help" in argv) or ("-h" in argv):
             PrintHelpMenu()
         else:
             PrintUnknownMenu()
-            exit(10)
+            sys.exit(10)
 
-        exit(0) # exit script without problems
+        sys.exit(0) # exit script without problems
 
 #------------------------------------------------------------------------------
 

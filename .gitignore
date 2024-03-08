@@ -8,3 +8,4 @@ command
 *.html
 *.php
 .vscode
+./ipp24_module/__pycache__/*
