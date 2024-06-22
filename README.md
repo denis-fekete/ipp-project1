@@ -3,7 +3,7 @@
 **Login: xfeket01**
 
 ### Quick Summary
-IPP project 1 is an lexical code analyzer of IPPcode24 language. Script in 
+IPP Project 1 is an lexical code analyzer of IPPcode24 language. Script in 
 python takes IPPcode24 code as an input and converts it into an XML file in 
 correct format and controls lexical errors.
 
