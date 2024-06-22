@@ -2,6 +2,11 @@
 **Jméno a příjmení: Denis Fekete**<br>
 **Login: xfeket01**
 
+### Quick Summary
+IPP project 1 is an lexical code analyzer of IPPcode24 language. Script in 
+python takes IPPcode24 code as an input and converts it into an XML file in 
+correct format and controls lexical errors.
+
 ### 1. Handling of parameters
 The Script takes either *one* or *zero* parameters. If the parameter is *--help* a help menu will be printed to to the standard output (from now on *stdout*). Any other combination of parameters will result in an unknown command menu printed to *stdout* and exiting with exit code *10*.
 ### 2. Checking head of file
